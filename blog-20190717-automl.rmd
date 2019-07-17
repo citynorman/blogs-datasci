@@ -1,0 +1,42 @@
+---
+title: "Can we trust AutoML to go on full autopilot?"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(knitr)
+library(reticulate)
+library(kableExtra)
+
+```
+
+*We put an autoML tool to a test on a real-world problem - the results surprised us! The good news is you still need expert data scientists even with autoML.*
+
+## The Promise of AutoML
+
+Data scientists are in short supply and Automatic Machine Learning (AutoML) promises to alleviate this problem. [H2O Driverless AI](https://www.h2o.ai/products/h2o-driverless-ai/) employs the techniques of expert data scientists in an easy to use application that helps scale your data science efforts. It lets "everyone develop trusted machine learning models". 
+
+## The Experiment
+
+A Chief Data Scientist and four Columbia University students with varying levels of experience put the technology to a test on a real-word problem predicting stock price movements (a challenging task!).
+
+The data was 5 years of stocks in the Russell 1000 index on a monthly frequency. The features were 80 stock-specific factors like price momentum, P/B, EPS growth, ROE. The target was 12 month forward stock returns (beta-adjusted alpha to be specific). The goal was to predict the stock returns using the stock features. The success metrics were mean absolute error and rank correlation between predicted and actual returns.
+
+**The special feature of the data is that it is panel data in which there is high cross-sectional correlation observations on one day. Furthermore there is high auto correlation between observations across time because data is provided monthly but returns are 12 months out so 11/12 months are the same between 2 subsequent observations.**
+
+## Naive Baseline
+
+Before evaluating a model you need to have a naive baseline as discussed in [Top 10 Statistics Mistakes Made by Data Scientists](https://www.kdnuggets.com/2019/06/statistics-mistakes-data-scientists.html). The first baseline is predicting a 0 return which is close to the median, meaning there is no way of predicting returns. The second baseline is an average of all the feature ranks meaning all features are equally important in forecasting returns. The last baseline is the return from a month ago - given the nature of the dataset this includes forward looking information and is a good measure for assessing any overtraining.
+
+```{python}
+import pandas as pd
+import numpy as np
+dfbase=pd.DataFrame({'model':['0 return forecast','factor equal-weight','return 1 month ago'],'MAE':[0.145,np.nan,0.222],'Correl':[np.nan,0.009,0.238]})
+```
+```{r}
+kable(py$dfbase, caption="Success Metrics for Naive Baseline") %>%
+  kable_styling(full_width = F, position = "left")
+```
+
+# Technical Setup
