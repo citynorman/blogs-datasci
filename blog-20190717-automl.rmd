@@ -27,7 +27,7 @@ The data was 5 years of stocks in the Russell 1000 index on a monthly frequency.
 
 ## Naive Baseline
 
-Before evaluating a model you need to have a naive baseline as discussed in [Top 10 Statistics Mistakes Made by Data Scientists](https://www.kdnuggets.com/2019/06/statistics-mistakes-data-scientists.html). The first baseline is predicting a 0 return which is close to the median, meaning there is no way of predicting returns. The second baseline is an average of all the feature ranks meaning all features are equally important in forecasting returns. The last baseline is the return from a month ago - given the nature of the dataset this includes forward looking information and is a good measure for assessing any overtraining and lookahead bias.
+Before evaluating a model you need to have a naive baseline as discussed in [Top 10 Statistics Mistakes Made by Data Scientists](https://www.kdnuggets.com/2019/06/statistics-mistakes-data-scientists.html). The first baseline is predicting a 0 return which is close to the median, meaning there is no way of predicting returns. The second baseline is an average of all the feature ranks meaning all features are equally important in forecasting returns. The last baseline is the return from a month ago - given the nature of the dataset this includes forward looking information and is a good baseline for assessing any overtraining and look-ahead bias.
 
 ```{python}
 import pandas as pd
@@ -41,43 +41,46 @@ kable(py$dfbase, caption="Success Metrics for Naive Baseline") %>%
 
 ## First hurdle - Technical Setup
 
-Before we got to modeling, the first hurdle was to get everyone set up with DAI. H2O recommends installing Driverless AI on modern data center hardware with GPUs, CUDA support and 64GB RAM. We followed the instructions and installed the software on Google Cloud Platform with the recommended settings. The result: we burned through all the free academic GCP credits in less than a week! We soon realized that such high computation power is not required as our dataset was just 1GB in size. We installed Driverless AI on a GCP machine with much lesser specifications and it also worked on a local laptop machine with just 16GB RAM. The installation of Driverless AI itself is not completely straightforward and requires some amount of technical expertise that not everyone had.
+Before we got to modeling, the first hurdle was to get everyone set up with DAI. H2O recommends installing Driverless AI on modern data center hardware with GPUs, CUDA support and 64GB RAM. We followed the instructions and installed the software on Google Cloud Platform with the recommended settings. The result: we burned through all our academic GCP credits in less than a week! 
+
+We soon realized that such high computation power is not required as our dataset was just 1GB in size. We installed Driverless AI on a GCP machine with much lesser specifications and it also worked on a local laptop machine with just 8GB RAM. Overall, the installation of Driverless AI required some amount of technical expertise that not everyone on the team had.
 
 ## Second hurdle - Data Preprocessing
 
 The next hurdle was to get the data ready for analysis, AutoML does not help that. We had to preprocess and combine data from five different data sources which was a substantial effort. We used data workflow library [d6tflow](https://github.com/d6t/d6tflow) and data sharing library [d6tpipe](https://github.com/d6t/d6tpipe) from [Top 10 Coding Mistakes Made by Data Scientists](https://www.kdnuggets.com/2019/04/top-10-coding-mistakes-data-scientists.html) to help us with the pre-modeling steps.
 
-## Fully automatic - too good to be true?
+## Running fully automatic - too good to be true?
 
-In the beginning of our experiment, we worked directly with the driverless AI interface, uploaded datasets, selected target variable, adjusted the knobs for performance, interpretability etc. We must say, the UI is neat and it kind of resembles Tony Stark's JARVIS. It was difficult for the data science newbies to choose the right settings but the ones amongst the team with at least an intermediate level of data science knowledge easily knew what to do.
+In the beginning of our experiment, we worked directly with the driverless AI interface, uploaded datasets, selected target variable, adjusted the knobs for performance, interpretability etc. We must say, the UI is neat and it kind of resembles Tony Stark's JARVIS. Yet the data science newbies struggled with choosing the right settings but the team members with at least an intermediate level of data science knowledge easily knew what to do.
 
 Once the launch button is hit, true to its name, the training was driverless. We watched the progress as it churned out hundreds of models and created thousands of new features and finally created a neat PDF report of the experiment results.
 
-The result: MAE of 4% and correlation 96%. WOW! The machine really is better than the human, blowing the naive model out of the water. But it even beat the naive model with lookahead bias - suspicious!
+**The result**: MAE of 4% and correlation 96%. WOW! The machine really is better than the human, blowing the naive model out of the water. But it even beat the naive model with look-ahead bias - suspicious!
 
-## Manual Test Set
+## Adding realistic test sets manually
 
 Following the out-sample testing advice for panel data in [Top 10 Statistics Mistakes Made by Data Scientists](https://www.kdnuggets.com/2019/06/statistics-mistakes-data-scientists.html), we built our own train/validation/test sets. DAI did not seem to have any functionality to do that so we had to do it manually. We split the data by time and also did rolling forward tests. The skill bar to do this had risen to intermediate.
 
-The result: MAE of 6% and correlation 90%. Still way higher than naive model with forward looking bias - suspicious again!
+**The result**: MAE of 6% and correlation 90%. Still way higher than naive model with forward looking bias - suspicious again!
 
 ## What does this thing do anyways??
 
 It this point we were not too sure what was driving this exceptional performance, clearly it was too good to be true. We got a report with all technical details and visuals. But how did it build models? What went on behind the closed curtains?
 It is difficult to understand what it tried. What parameters, what features does it engineer? what features engineered that subsequently dropped out? Not only the newbies got lost here but the pros too.
 
-## Fully Manual
+By carefully analyzing the output we figured out what the problem was: DAI automatically adds lagged variables and out of fold means. Given the nature if our dataset, it being panel data with overlapping target variables, those features caused the look-ahead bias and substantially inflated results.
 
-We had to dig deep into the DAI documentation and use the DAI python client to turn off look-ahead features and manually run every experiment. We performed a manual roll-forward analysis with non-overlapping periods with the results stored in a d6tflow workflow DAG optimized for DAI. The skill bar to do this was now at professional.
+## Going fully manual to avoid look-ahead bias
 
-The result: MAE of 23% and rank correlation 4%. Much more reasonable! And still beating the zero skill and equal-weight model.
+We had to dig deep into the DAI documentation and use the DAI python client to turn off those features and manually run every experiment to perform a roll-forward analysis with non-overlapping periods. With quite some effort we built a fully automated machine learning workflow using d6tflow optimized for DAI. The skill bar to do this was now at professional.
 
+**The result**: MAE of 23% and rank correlation 4%. Much more reasonable! And still beating the zero skill and equal-weight model.
 
 ## Conclusions
 
-First, DAI claims it does not overfit but it did! Driverless AI didn't work for us in a fully automated way until we went manual and turned off the features causing the look-ahead bias. This means that AutoML systems can give spurious results if it is not carefully monitored. This could be due to unique nature of our dataset but if it happened to us it could happen to others. Therefore, it is very important to understand characteristics of data and the type of analysis one wants to do.
+First, DAI claims it does not overfit but it did! Driverless AI showed inflated test performance that we would have never achieved running the model in production real-time. This serves as an case study where AutoML systems can give spurious results if they are not carefully monitored. This could be due to unique nature of our dataset but if it happened to us, it could happen to others. Therefore, it is crucially important to understand the characteristics of your data and the type of analysis you want to do.
 
-Second, the whole data pipeline involved a lot more than just DAI. We needed manual setup, data preparation, and output comparison with naive models. We still had to know how to use pandas, d6tpipe, d6tflow and how to build a roll-forward analysis with non-overlapping data. 
+Second, the whole data pipeline involved a lot more than just AutoML model training. We needed to prepare data, manually control DAI via python, and extract outputs to compare with naive models. We still had to know how to use pandas, d6tpipe, d6tflow and how to build realistic test and training sets.
 
 Third, despite transparency for the the ultimate model, it was still unclear what features DAI generated and how it trained models, so it would be difficult for a novice to explain the methodology and output with confidence.
 
