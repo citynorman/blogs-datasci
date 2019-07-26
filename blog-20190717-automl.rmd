@@ -41,7 +41,7 @@ kable(py$dfbase, caption="Success Metrics for Naive Baseline") %>%
 
 ## First hurdle - Technical Setup
 
-Before we got to modeling, the first hurdle was to get everyone set up with DAI. H2O recommends installing Driverless AI on modern data center hardware with GPUs, CUDA support and 64GB RAM. We followed the instructions and installed the software on Google Cloud Platform with the recommended settings. The result: we burned through all our academic GCP credits in less than a week! 
+Before we got to modeling, the first hurdle was to get everyone set up with DAI. H2O recommends installing Driverless AI on modern data center hardware with GPUs, CUDA support and 64GB RAM. We followed the instructions and installed the software on Google Cloud Platform with the recommended settings. The result: we burned through $200 of GCP credits in less than a week! 
 
 We soon realized that such high computation power is not required as our dataset was just 1GB in size. We installed Driverless AI on a GCP machine with much lesser specifications and it also worked on a local laptop machine with just 8GB RAM. Overall, the installation of Driverless AI required some amount of technical expertise that not everyone on the team had.
 
