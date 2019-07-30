@@ -41,9 +41,9 @@ kable(py$dfbase, caption="Success Metrics for Naive Baseline") %>%
 
 ## First hurdle - Technical Setup
 
-Before we got to modeling, the first hurdle was to get everyone set up with DAI. H2O recommends installing Driverless AI on modern data center hardware with GPUs, CUDA support and 64GB RAM. We followed the instructions and installed the software on Google Cloud Platform with the recommended settings. The result: we burned through $200 of GCP credits in less than a week! 
+Before we got to modeling, the first hurdle was to get everyone set up with DAI. H2O recommends installing Driverless AI on modern data center hardware with GPUs, CUDA support and 64GB RAM. We followed the instructions and installed the software on Google Cloud Platform with the recommended settings. 
 
-We soon realized that such high computation power is not required as our dataset was just 1GB in size. We installed Driverless AI on a GCP machine with much lesser specifications and it also worked on a local laptop machine with just 8GB RAM. Overall, the installation of Driverless AI required some amount of technical expertise that not everyone on the team had.
+**The result**: we burned through $200 of GCP credits in less than a week! We soon realized that such high computation power is not required as our dataset was just 1GB in size. We installed Driverless AI on a GCP machine with much lesser specifications and it also worked on a local laptop machine with just 8GB RAM. Overall, the installation of Driverless AI required some amount of technical expertise that not everyone on the team had.
 
 ## Second hurdle - Data Preprocessing
 
@@ -51,7 +51,7 @@ The next hurdle was to get the data ready for analysis, AutoML does not help tha
 
 ## Running fully automatic - too good to be true?
 
-In the beginning of our experiment, we worked directly with the driverless AI interface, uploaded datasets, selected target variable, adjusted the knobs for performance, interpretability etc. We must say, the UI is neat and it kind of resembles Tony Stark's JARVIS. Yet the data science newbies struggled with choosing the right settings but the team members with at least an intermediate level of data science knowledge easily knew what to do.
+In the beginning of our experiment, we worked directly with the driverless AI interface, uploaded datasets, selected target variable, adjusted the knobs for performance, interpretability etc. We must say, the UI is neat and it kind of resembles Tony Stark's JARVIS. While the total data science newbies struggled with choosing the right settings, the team members with at least an intermediate level of data science knowledge easily knew what to do.
 
 Once the launch button is hit, true to its name, the training was driverless. We watched the progress as it churned out hundreds of models and created thousands of new features and finally created a neat PDF report of the experiment results.
 
@@ -70,6 +70,12 @@ It is difficult to understand what it tried. What parameters, what features does
 
 By carefully analyzing the output we figured out what the problem was: DAI automatically adds lagged variables and out of fold means. Given the nature if our dataset, it being panel data with overlapping target variables, those features caused the look-ahead bias and substantially inflated results.
 
+The graph below illustrates the particular issue in more detail. Assume there are only two stocks: A and B. We want to forecast yearly returns from input data which updates monthly. In training it is easy to forecast A2 from A1 because of the large overlap. But when running the model live we don't have the same input data, as illustrated by A13 and A14. So we have to be careful with prior observations in training. Also if B is highly correlated with A it is easy to forecast but again that data is not available when the model runs live in production and therefore the exceptional "test" performance would not hold up.
+
+![](d:/owncloud/d6t/sales/blogs/automl overlapping train 20190729.PNG)
+
+These issues also trip up human data scientists as illustrated in more detail with examples in [Top 10 Statistics Mistakes Made by Data Scientists](https://www.kdnuggets.com/2019/06/statistics-mistakes-data-scientists.html), see #7+8.
+
 ## Going fully manual to avoid look-ahead bias
 
 We had to dig deep into the DAI documentation and use the DAI python client to turn off those features and manually run every experiment to perform a roll-forward analysis with non-overlapping periods. With quite some effort we built a fully automated machine learning workflow using d6tflow optimized for DAI. The skill bar to do this was now at professional.
@@ -78,7 +84,7 @@ We had to dig deep into the DAI documentation and use the DAI python client to t
 
 ## Conclusions
 
-First, DAI claims it does not overfit but it did! Driverless AI showed inflated test performance that we would have never achieved running the model in production real-time. This serves as an case study where AutoML systems can give spurious results if they are not carefully monitored. This could be due to unique nature of our dataset but if it happened to us, it could happen to others. Therefore, it is crucially important to understand the characteristics of your data and the type of analysis you want to do.
+First, DAI claims it does not overfit but it did! Driverless AI showed inflated test performance that we would have never achieved running the model in production real-time. This serves as an case study where AutoML systems can give overly optimistic results out-sample is not carefully analyzed. This could be due to unique nature of our dataset but if it happened to us, it could happen to others. Therefore, it is crucially important to understand the characteristics of your data and the type of predictions you make.
 
 Second, the whole data pipeline involved a lot more than just AutoML model training. We needed to prepare data, manually control DAI via python, and extract outputs to compare with naive models. We still had to know how to use pandas, d6tpipe, d6tflow and how to build realistic test and training sets.
 
