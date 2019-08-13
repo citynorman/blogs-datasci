@@ -1,0 +1,107 @@
+---
+title: "[7] step guide to scalable deep learning pipelines"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(knitr)
+library(reticulate)
+library(kableExtra)
+
+```
+
+*Use pytorch and d6tflow on a case study using Facebook deep recommender model.*
+
+# Why bother?
+
+Building deep learning models involves a lot of trial and error, tweaking model architecture and parameters whose performance needs to be compared. It is often difficult to keep track of all the experiments, leading at best to confusion and at worst wrong conclusions.
+
+In [4 reasons why your ML code is bad] we learned how to organize ML code as DAGs to solve that problem. In this guide we will go through a practical case study on turning a pytorch script into a scalable deep learning pipeline. The starting point is a pytorch deep recommender model by Facebook.
+
+Why that? Great innovation but difficult to understand how code worked and difficult to keep track of parameters.
+
+## Plan your DAG
+
+* Organize into logical components
+* Help others understand how your pipeline fits together
+
+```{python}
+task = TaskRunDLRMExperiment(debug_mode = True, data_size = 6, d6tflow.preview(task, clip_params=True)
+
+```
+
+## Persist intermediary output
+
+* Save trained models and preprocessed data
+* Instead of function do a Task
+
+```{python}
+# before
+
+def train_model():
+    dlrm = DLRM_Net([...])
+    pickle.dump(dlrm, 'model.pkl')
+
+
+# after
+class TaskBuildNetwork(d6tflow.tasks.TaskPickle):
+
+    def requires(self):
+        return self.clone(TaskLintParameters)
+
+    def run(self):
+
+        dataset_dict = self.input().load()
+
+        dlrm = DLRM_Net([...])
+
+        self.save({'dlrm': dlrm,
+                  'dataset_dict': dataset_dict}) ## why save dataset again??
+
+```
+
+## Parameterize tasks
+
+* Avoid inadvertant retraining, automatically add
+* help others understand where params go and where in pipeline they are introduced
+
+## Inherit parameters
+
+* run final task with parameters
+* quick to compare models after DAG is run
+
+## Run DAG to train model
+
+* preview pipeline, check flow is correct
+* execute, automatically runs dependencies
+
+## Test performance
+
+* load output
+* compare models
+
+## Compare models
+
+* load output from different models using parameters
+
+## Keep iterating
+
+* invalidate previous experiments
+* change parameters
+* automatically knows which tasks need to be run
+
+## Try yourself
+
+[git repo link]
+
+* flow_task.py: task code
+* flow_run.py: run flow
+* flow_cfg.py: parameters
+
+
+## Bonus: Clone d6tflow template
+
+* task.py: task code
+* run.py: 
+
