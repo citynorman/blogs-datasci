@@ -1,54 +1,65 @@
 ---
-title: "[7] step guide to scalable deep learning pipelines"
+title: "5 step guide to scalable deep learning pipelines"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = TRUE)
 library(knitr)
 library(reticulate)
 library(kableExtra)
+
+setwd("d:/dev/blogs-source/dlrm/")
+source_python("flow_tasks.py")
 
 ```
 
 *Use pytorch and d6tflow on a case study using Facebook deep recommender model.*
 
-# Why bother?
+# Introduction: Why bother?
 
 Building deep learning models involves a lot of trial and error, tweaking model architecture and parameters whose performance needs to be compared. It is often difficult to keep track of all the experiments, leading at best to confusion and at worst wrong conclusions.
 
-In [4 reasons why your ML code is bad] we learned how to organize ML code as DAGs to solve that problem. In this guide we will go through a practical case study on turning a pytorch script into a scalable deep learning pipeline. The starting point is a pytorch deep recommender model by Facebook.
+In [4 reasons why your ML code is bad] we learned how to organize ML code as DAGs to solve that problem. In this guide we will go through a practical case study on turning a pytorch script into a scalable deep learning pipeline. The starting point is a pytorch deep recommender model by Facebook. Why that? Great innovation but difficult to understand how code worked and difficult to keep track of parameters.
 
-Why that? Great innovation but difficult to understand how code worked and difficult to keep track of parameters.
+## Step 1: Plan your DAG
 
-## Plan your DAG
-
-* Organize into logical components
+* Think about data flow and dependencies between steps
+* Organize workflow into logical components
 * Help others understand how your pipeline fits together
 
+Below is the DAG for FB DLRM. It is relatively linear, typically you would have more complex dependencies especially if you don't start with a linear workflow.
+
 ```{python}
-task = TaskRunDLRMExperiment(debug_mode = True, data_size = 6, d6tflow.preview(task, clip_params=True)
+task = TaskRunDLRMExperiment()
+print(d6tflow.preview(task, clip_params=True))
 
 ```
 
-## Persist intermediary output
+## Step 2: Write Tasks instead of functions
 
-* Save trained models and preprocessed data
-* Instead of function do a Task
+* Tasks make up the DAG. Can define dependencies and automatically persist intermediary output
+* Dont want to rerun every step of the workflow every you time you run it, especially long-running training tasks. Eg Persist trained models and preprocessed data
+* In the spirit of seperating code from data, output is saved to d6tpipe
 
-```{python}
+The task automatically saves model output and therefore does not rerun if the model has already been trained.
+
+```{python, echo=TRUE, eval = FALSE}
 # before
 
 def train_model():
     dlrm = DLRM_Net([...])
-    pickle.dump(dlrm, 'model.pkl')
+    torch.save({dlrm},'model.pickle')
+
+if __name__ == "__main__":
+    dlrm = torch.load('model.pickle')
 
 
 # after
 class TaskBuildNetwork(d6tflow.tasks.TaskPickle):
 
     def requires(self):
-        return self.clone(TaskLintParameters)
+        return TaskLintParameters()
 
     def run(self):
 
@@ -56,34 +67,99 @@ class TaskBuildNetwork(d6tflow.tasks.TaskPickle):
 
         dlrm = DLRM_Net([...])
 
-        self.save({'dlrm': dlrm,
-                  'dataset_dict': dataset_dict}) ## why save dataset again??
+        self.save(dlrm)
 
 ```
 
-## Parameterize tasks
+
+## Step 3: Parameterize tasks
 
 * Avoid inadvertant retraining, automatically add
 * help others understand where params go and where in pipeline they are introduced
 
-## Inherit parameters
+Below sets up the task with parameters. You will see at the model comparison stage how this is useful.
 
+```{python, echo=TRUE, eval = FALSE}
+# before
+
+if __name__ == "__main__":
+    parser.add_argument("--sync-dense-params", type=bool, default=True)
+    dlrm = DLRM_Net(
+        sync_dense_params=args.sync_dense_params
+    )
+
+# after
+
+class TaskBuildNetwork(d6tflow.tasks.TaskPickle):
+
+    sync_dense_params = luigi.BoolParameter(default = True)
+
+    def run(self):
+        dlrm = DLRM_Net(
+            sync_dense_params=self.sync_dense_params
+        )
+
+```
+
+
+### Inherit parameters
+
+* parameter automatically cascades through workflow
 * run final task with parameters
 * quick to compare models after DAG is run
 
-## Run DAG to train model
+`TaskRunDLRMExperiment` inherits parameters from `TaskBuildNetwork`. This way you can run `TaskRunDLRMExperiment(sync_dense_params=False)` and it will pass the parameter to upstream tasks ie `TaskBuildNetwork` and all other tasks that depend on it.
+
+```{python, echo=TRUE, eval = FALSE}
+
+class TaskBuildNetwork(d6tflow.tasks.TaskPickle):
+
+    sync_dense_params = luigi.BoolParameter(default = True)
+    # [...]
+
+@d6tflow.inherit(TaskBuildNetwork)
+@d6tflow.clone_parent()
+class TaskRunDLRMExperiment(d6tflow.tasks.TaskPickle):
+    # [...]
+    pass
+
+```
+
+## Step 4: Run DAG to train model
 
 * preview pipeline, check flow is correct
-* execute, automatically runs dependencies
+* execute, automatically runs all dependencies including any preprocessing and training tasks
 
-## Test performance
+```{python, eval = FALSE}
+task = TaskRunDLRMExperiment()
+d6tflow.run(task))
 
-* load output
-* compare models
+```
 
-## Compare models
+
+## Step 5: Test performance
+
+* once all tasks are complete, you can load predictions and other model output
+* run diagnostics as usual
+
+```{python, eval = FALSE}
+model1 = TaskRunDLRMExperiment().output().load()
+print_accuracy(model1)
+
+```
+
+
+### Compare models
 
 * load output from different models using parameters
+
+```{python, eval = FALSE}
+model1 = TaskRunDLRMExperiment().output().load()
+print_accuracy(model1)
+model2 = TaskRunDLRMExperiment(sync_dense_params=False).output().load()
+print_accuracy(model2)
+
+```
 
 ## Keep iterating
 
@@ -91,17 +167,34 @@ class TaskBuildNetwork(d6tflow.tasks.TaskPickle):
 * change parameters
 * automatically knows which tasks need to be run
 
+Say for example you changed training data or made changes to the training preprocessing.
+
+```{python, eval = FALSE}
+
+TaskGetTrainDataset().invalidate()
+
+# or
+d6tflow.run(task, forced=TaskGetTrainDataset())
+
+
+```
+
 ## Try yourself
 
-[git repo link]
+All code is provided at https://github.com/d6tdev/dlrm
 
+* flow_run.py: run flow => this is the file you want to run
 * flow_task.py: task code
-* flow_run.py: run flow
 * flow_cfg.py: parameters
 
 
-## Bonus: Clone d6tflow template
+## Your next project
 
+In this guide we showed how to build scalable deep learning pipelines. We used an existing code base to explain how to turn linear deep learning code into DAGs and the benefits of doing so.
+
+For new projects, you can start with a clean project template from https://github.com/d6t/d6tflow-template. The structure is very similar:
+
+* run.py: run workflow
 * task.py: task code
-* run.py: 
+* cfg.py: manage parameters
 
