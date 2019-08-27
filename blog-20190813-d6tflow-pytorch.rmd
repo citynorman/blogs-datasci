@@ -9,7 +9,7 @@ library(knitr)
 library(reticulate)
 library(kableExtra)
 
-setwd("d:/dev/blogs-source/dlrm/")
+setwd("C:\\Users\\sshowalter\\Documents\\My_Documents\\Repos\\dlrm\\")
 source_python("flow_tasks.py")
 
 ```
@@ -22,17 +22,22 @@ Building deep learning models involves a lot of trial and error, tweaking model 
 
 In [4 reasons why your ML code is bad] we learned how to organize ML code as DAGs to solve that problem. In this guide we will go through a practical case study on turning a pytorch script into a scalable deep learning pipeline. The starting point is a pytorch deep recommender model by Facebook. Why that? Great innovation but difficult to understand how code worked and difficult to keep track of parameters.
 
+With a model as complex as Facebook's deep learning recommender, the number of parameters to manage for even a single run is enormous. Moreover, tracking the use of said parameters can be an exercise in futility, particularly if a single paramter influences multiple facets of the model execution. Fortunately, d6tflow allows for easy management of these parameters and much more.
+
 ## Step 1: Plan your DAG
 
 * Think about data flow and dependencies between steps
 * Organize workflow into logical components
 * Help others understand how your pipeline fits together
+* Encapsulate your code into modules or nodes for greater flexibility
 
-Below is the DAG for FB DLRM. It is relatively linear, typically you would have more complex dependencies especially if you don't start with a linear workflow.
+Below is the DAG for FB DLRM. It is relatively linear, typically you would have more complex dependencies especially if you don't start with a linear workflow. In many ways DAGs act as excellent catalogues for managing and efficiently integrating new functionality. Because of their modularity, developers can often avoid redundant or conflicting code as projects grow.
+
+Even better, few tools allow developers to get a snapshot of their intended execution before compile time, if ever. The functionality of d6tflow not only gives the user a full-view of what their pipeline will do, it can further offer a glimpse into the parameters that will effect the experiment. Not a bad feature for debugging or demonstrations.
 
 ```{python}
 task = TaskRunDLRMExperiment()
-print(d6tflow.preview(task, clip_params=True))
+print(d6tflow.preview(task))
 
 ```
 
@@ -41,8 +46,11 @@ print(d6tflow.preview(task, clip_params=True))
 * Tasks make up the DAG. Can define dependencies and automatically persist intermediary output
 * Dont want to rerun every step of the workflow every you time you run it, especially long-running training tasks. Eg Persist trained models and preprocessed data
 * In the spirit of seperating code from data, output is saved to d6tpipe
+* For repeated runs of similar experiments, nodes are often intelligently re-used, potentially saving lots of time with large or complex pipelines. 
 
-The task automatically saves model output and therefore does not rerun if the model has already been trained.
+The task automatically saves model output and therefore does not rerun if the model has already been trained. As a Data Scientist in industry or academia, this efficiency DAGs provide has a direct impact on productivity. 
+
+Furthermore, many Data Scientists and engineers readily present their approach and finding to unfamiliar audiences. Functions by themselves can often obscure a general concept, with many contributing in conjunction to accomplish a single goal. Therefore, explanation at a function-level is often more difficult than simply pointing to a neatly displayed task graph and walking through the logical process step by step. In this way, d6tflow acts a both a developer's productivity tool as well as a means for efficient presentation.
 
 ```{python, echo=TRUE, eval = FALSE}
 # before
@@ -76,6 +84,7 @@ class TaskBuildNetwork(d6tflow.tasks.TaskPickle):
 
 * Avoid inadvertant retraining, automatically add
 * help others understand where params go and where in pipeline they are introduced
+* Visualize the 
 
 Below sets up the task with parameters. You will see at the model comparison stage how this is useful.
 
@@ -153,6 +162,8 @@ print_accuracy(model1)
 
 * load output from different models using parameters
 
+Every model needs a benchmark for comparison, and DAGs like d6tflow make it easy to quickly compare and contrast the performance of different models. By saving artifacts of the execution to d6tpipe and calling them back later for future use, there is never a concern for losing precious data mid-execution. Halted executions no longer mean a complete loss of all data.
+
 ```{python, eval = FALSE}
 model1 = TaskRunDLRMExperiment().output().load()
 print_accuracy(model1)
@@ -167,7 +178,7 @@ print_accuracy(model2)
 * change parameters
 * automatically knows which tasks need to be run
 
-Say for example you changed training data or made changes to the training preprocessing.
+Say for example you changed training data or made changes to the training preprocessing.Instead of rolling back all of the previous information gathered from other executions, you can manually set which nodes you would like to invalidate. The dynamic nature of 
 
 ```{python, eval = FALSE}
 
