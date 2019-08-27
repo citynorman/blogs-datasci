@@ -9,7 +9,7 @@ library(knitr)
 library(reticulate)
 library(kableExtra)
 
-setwd("C:\\Users\\sshowalter\\Documents\\My_Documents\\Repos\\dlrm\\")
+setwd("PATH")
 source_python("flow_tasks.py")
 
 ```
@@ -186,7 +186,7 @@ print_accuracy(model2)
 * change parameters
 * automatically knows which tasks need to be run
 
-For example, say you changed training data or made changes to the training preprocessing. Instead of rolling back all of the previous information gathered from other executions, you can manually set which nodes you would like to invalidate. The dynamic nature of 
+For example, say you changed training data or made changes to the training preprocessing.Instead of rolling back all of the previous information gathered from other executions, you can manually set which nodes you would like to invalidate. The dynamic nature of 
 
 ```{python, eval = FALSE}
 
