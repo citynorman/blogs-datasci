@@ -119,6 +119,10 @@ class TaskBuildNetwork(d6tflow.tasks.TaskPickle):
 
 `TaskRunDLRMExperiment` inherits parameters from `TaskBuildNetwork`. This way you can run `TaskRunDLRMExperiment(sync_dense_params=False)` and it will pass the parameter to upstream tasks ie `TaskBuildNetwork` and all other tasks that depend on it.
 
+Having tasks inherit parameters selectively from its parents has two major benefits. For one, developers no longer have to worry about passing the same parameters between functions manually. DAG inheritance with d6tflow offers a seamless and memory efficient method of parameter persistance.
+
+Second, with all parameter mapping now abstracted, creating and executing full pipelines is as simple as generating a collection of parameters, either in a configuration file or explicit distionary, and running the terminal task of the DAG. Best of all, users can set default parameters in the configuration and then selectively override them based on specific experiments. No longer do developers need to explicitly define every parameter for pipeline experiments.
+
 ```{python, echo=TRUE, eval = FALSE}
 
 class TaskBuildNetwork(d6tflow.tasks.TaskPickle):
@@ -139,6 +143,8 @@ class TaskRunDLRMExperiment(d6tflow.tasks.TaskPickle):
 * preview pipeline, check flow is correct
 * execute, automatically runs all dependencies including any preprocessing and training tasks
 
+As the terminal node for the Facebook deep learning recommender, `TaskRunDLRMExperiment` is the only task that needs to be defined and run for the entire pipeline to execute. No need for main methods full of function-specific code!
+
 ```{python, eval = FALSE}
 task = TaskRunDLRMExperiment()
 d6tflow.run(task))
@@ -150,6 +156,8 @@ d6tflow.run(task))
 
 * once all tasks are complete, you can load predictions and other model output
 * run diagnostics as usual
+
+Finally, we can take advantage of d6tpipe's data persistence and easiy assess the performance of our models.
 
 ```{python, eval = FALSE}
 model1 = TaskRunDLRMExperiment().output().load()
@@ -178,7 +186,7 @@ print_accuracy(model2)
 * change parameters
 * automatically knows which tasks need to be run
 
-Say for example you changed training data or made changes to the training preprocessing.Instead of rolling back all of the previous information gathered from other executions, you can manually set which nodes you would like to invalidate. The dynamic nature of 
+For example, say you changed training data or made changes to the training preprocessing. Instead of rolling back all of the previous information gathered from other executions, you can manually set which nodes you would like to invalidate. The dynamic nature of 
 
 ```{python, eval = FALSE}
 
