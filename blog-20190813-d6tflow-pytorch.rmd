@@ -14,7 +14,7 @@ source_python("flow_tasks.py")
 
 ```
 
-*How to turn a typical pytorch script into a d6tflow DAG for faster research & development*
+*How to turn a typical pytorch script into a scalable d6tflow DAG for faster research & development*
 
 # Introduction: Why bother?
 
