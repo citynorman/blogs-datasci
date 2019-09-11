@@ -30,7 +30,7 @@ To plan your work and help others understand how your pipeline fits together, yo
 
 ![](https://github.com/d6t/d6tflow/raw/master/docs/d6tflow-docs-graph.png?raw=true)
 
-Below is the pytorch model training DAG for FB DLRM. It shows the training task `TaskModelTrain` with all its dependencies and how the dependencies relate to each other.
+Below is the pytorch model training DAG for FB DLRM. It shows the training task `TaskModelTrain` with all its dependencies and how the dependencies relate to each other. If you write functional code it is difficult see how your workflow fits together like this.
 
 ```{python}
 task = TaskModelTrain()
